@@ -6,39 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingCart, Users, Truck, Sprout, TrendingUp, Shield, Globe } from "lucide-react";
+import { ShoppingCart, Users, Truck, Sprout, TrendingUp, Shield, Globe, Smartphone, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 const BuyerLogin = () => {
   const [activeTab, setActiveTab] = useState<'buyer' | 'seller'>("buyer");
-  const [showBuyerRegister, setShowBuyerRegister] = useState(false);
-  const [showSellerRegister, setShowSellerRegister] = useState(false);
-  const [showOtpLogin, setShowOtpLogin] = useState(false);
-  const [otpPhone, setOtpPhone] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
+  const [showOtpPage, setShowOtpPage] = useState(false);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [otpValue, setOtpValue] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   
-  // Form states for login
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  
-  // Form states for registration
-  const [registerData, setRegisterData] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirm_password: "",
-    first_name: "",
-    last_name: "",
-    role: "buyer" as "buyer" | "seller",
-    phone: "",
-    location: ""
-  });
-  const [isRegistering, setIsRegistering] = useState(false);
-
-  const { login, register, isAuthenticated } = useAuth();
+  const { loginWithOTP, sendOTP, verifyOTP, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -48,80 +29,98 @@ const BuyerLogin = () => {
     return null;
   }
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!username || !password) {
+  const handleSendOTP = async () => {
+    if (!name || !email) {
       toast({
-        title: "Error",
-        description: "Please fill in all fields.",
+        title: "Missing information",
+        description: "Please enter both name and email address.",
         variant: "destructive",
       });
       return;
     }
 
-    setIsLoggingIn(true);
+    setIsSendingOtp(true);
     try {
-      const success = await login(username, password);
+      const success = await sendOTP(email, 'login');
+      
       if (success) {
+        setShowOtpPage(true);
         toast({
-          title: "Success",
-          description: "Login successful!",
+          title: "OTP Sent",
+          description: "OTP has been sent to your email address.",
         });
-        navigate("/shop");
       } else {
         toast({
           title: "Error",
-          description: "Invalid credentials. Please try again.",
+          description: "Failed to send OTP. Please try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Login failed. Please try again.",
+        description: "Failed to send OTP. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsLoggingIn(false);
+      setIsSendingOtp(false);
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (registerData.password !== registerData.confirm_password) {
+  const handleVerifyOTP = async () => {
+    if (!otpValue) {
       toast({
-        title: "Error",
-        description: "Passwords do not match.",
+        title: "OTP required",
+        description: "Please enter the OTP code",
         variant: "destructive",
       });
       return;
     }
 
-    setIsRegistering(true);
+    setIsVerifyingOtp(true);
     try {
-      const success = await register(registerData);
-      if (success) {
-        toast({
-          title: "Success",
-          description: "Registration successful!",
-        });
-        navigate("/shop");
+      // First verify the OTP
+      const otpVerified = await verifyOTP(email, otpValue, 'login');
+
+      if (otpVerified) {
+        // Then login with OTP
+        const result = await loginWithOTP(email, otpValue);
+
+        if (result) {
+          toast({
+            title: "Login successful!",
+            description: "Welcome back!",
+          });
+          // Redirect to shop
+          navigate("/shop");
+        } else {
+          toast({
+            title: "Login failed",
+            description: "Please try again.",
+            variant: "destructive",
+          });
+        }
       } else {
         toast({
-          title: "Error",
-          description: "Registration failed. Please try again.",
+          title: "Invalid OTP",
+          description: "Please check the OTP and try again.",
           variant: "destructive",
         });
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Registration failed. Please try again.",
+        title: "Login failed",
+        description: "Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsRegistering(false);
+      setIsVerifyingOtp(false);
     }
+  };
+
+  const handleBackToLogin = () => {
+    setShowOtpPage(false);
+    setOtpValue("");
   };
 
   return (
@@ -157,54 +156,112 @@ const BuyerLogin = () => {
               </p>
             </CardHeader>
             <CardContent className="space-y-6 px-6 md:px-10 pb-8 pt-2">
-              <form className="space-y-5" onSubmit={handleLogin}>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Username</label>
-                  <Input 
-                    type="text" 
-                    placeholder="Enter your username" 
-                    className="h-11" 
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                  />
+              {!showOtpPage ? (
+                // Login Form with Name and Phone
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Name</label>
+                    <Input 
+                      type="text" 
+                      placeholder="Enter your name" 
+                      className="h-11" 
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">Email Address</label>
+                    <Input 
+                      type="email" 
+                      placeholder="Enter your email address" 
+                      className="h-11" 
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <Button 
+                    className="w-full h-11 text-base font-semibold" 
+                    size="lg" 
+                    onClick={handleSendOTP}
+                    disabled={isSendingOtp}
+                  >
+                    <Smartphone className="h-4 w-4 mr-2" />
+                    {isSendingOtp ? "Sending OTP..." : "Send OTP"}
+                  </Button>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Password</label>
-                  <Input 
-                    type="password" 
-                    placeholder="Enter your password" 
-                    className="h-11" 
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <Button 
-                  className="w-full h-11 text-base font-semibold" 
-                  size="lg" 
-                  type="submit"
-                  disabled={isLoggingIn}
-                >
-                  {isLoggingIn ? "Logging in..." : "Login"}
-                </Button>
-                <div className="text-center pt-4">
-                  <span className="text-sm text-muted-foreground">New user?</span>
-                  {activeTab === 'buyer' ? (
-                    <Link 
-                      to="/buyer-registration"
-                      className="ml-2 text-sm text-primary hover:text-primary/80 font-medium"
+              ) : (
+                // OTP Verification Page
+                <div className="space-y-5">
+                  <div className="text-center mb-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleBackToLogin}
+                      className="mb-4"
                     >
-                      Register as Buyer
-                    </Link>
-                  ) : (
-                    <Link 
-                      to="/seller-registration"
-                      className="ml-2 text-sm text-primary hover:text-primary/80 font-medium"
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to Login
+                    </Button>
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
+                      Enter OTP
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      We've sent a 6-digit code to {email}
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground">OTP Code</label>
+                    <Input 
+                      type="text" 
+                      placeholder="Enter 6-digit OTP" 
+                      className="h-11 text-center text-lg tracking-widest" 
+                      value={otpValue}
+                      onChange={(e) => setOtpValue(e.target.value)}
+                      maxLength={6}
+                    />
+                  </div>
+                  
+                  <Button 
+                    className="w-full h-11 text-base font-semibold" 
+                    size="lg" 
+                    onClick={handleVerifyOTP}
+                    disabled={isVerifyingOtp}
+                  >
+                    {isVerifyingOtp ? "Verifying..." : "Verify & Login"}
+                  </Button>
+                  
+                  <div className="text-center">
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSendOTP}
+                      disabled={isSendingOtp}
                     >
-                      Register as Seller
-                    </Link>
-                  )}
+                      Resend OTP
+                    </Button>
+                  </div>
                 </div>
-              </form>
+              )}
+
+              <div className="text-center pt-4">
+                <span className="text-sm text-muted-foreground">New user?</span>
+                {activeTab === 'buyer' ? (
+                  <Link 
+                    to="/buyer-registration"
+                    className="ml-2 text-sm text-primary hover:text-primary/80 font-medium"
+                  >
+                    Register as Buyer
+                  </Link>
+                ) : (
+                  <Link 
+                    to="/seller-registration"
+                    className="ml-2 text-sm text-primary hover:text-primary/80 font-medium"
+                  >
+                    Register as Seller
+                  </Link>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -352,222 +409,6 @@ const BuyerLogin = () => {
           </div>
         </div>
       </div>
-
-      {/* Registration Modal for Buyer */}
-      {showBuyerRegister && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-background rounded-lg shadow-lg w-full max-w-md p-8 relative">
-            <button className="absolute top-3 right-3 text-xl" onClick={() => setShowBuyerRegister(false)}>&times;</button>
-            <h2 className="text-2xl font-bold mb-6 text-center">Register as Buyer</h2>
-            <form className="space-y-5" onSubmit={handleRegister}>
-              <div>
-                <label className="block text-sm font-medium mb-1">Username</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your username" 
-                  className="h-11" 
-                  value={registerData.username}
-                  onChange={(e) => setRegisterData({...registerData, username: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <Input 
-                  type="email" 
-                  placeholder="Enter your email" 
-                  className="h-11" 
-                  value={registerData.email}
-                  onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">First Name</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your first name" 
-                  className="h-11" 
-                  value={registerData.first_name}
-                  onChange={(e) => setRegisterData({...registerData, first_name: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Last Name</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your last name" 
-                  className="h-11" 
-                  value={registerData.last_name}
-                  onChange={(e) => setRegisterData({...registerData, last_name: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Phone Number</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your phone number" 
-                  className="h-11" 
-                  value={registerData.phone}
-                  onChange={(e) => setRegisterData({...registerData, phone: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Location</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your location" 
-                  className="h-11" 
-                  value={registerData.location}
-                  onChange={(e) => setRegisterData({...registerData, location: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Password</label>
-                <Input 
-                  type="password" 
-                  placeholder="Enter your password" 
-                  className="h-11" 
-                  value={registerData.password}
-                  onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Confirm Password</label>
-                <Input 
-                  type="password" 
-                  placeholder="Confirm your password" 
-                  className="h-11" 
-                  value={registerData.confirm_password}
-                  onChange={(e) => setRegisterData({...registerData, confirm_password: e.target.value})}
-                  required
-                />
-              </div>
-              <Button 
-                className="w-full h-11 text-base font-semibold" 
-                size="lg" 
-                type="submit"
-                disabled={isRegistering}
-              >
-                {isRegistering ? "Registering..." : "Register"}
-              </Button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Registration Modal for Seller */}
-      {showSellerRegister && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-background rounded-lg shadow-lg w-full max-w-md p-8 relative">
-            <button className="absolute top-3 right-3 text-xl" onClick={() => setShowSellerRegister(false)}>&times;</button>
-            <h2 className="text-2xl font-bold mb-6 text-center">Register as Seller</h2>
-            <form className="space-y-5" onSubmit={handleRegister}>
-              <div>
-                <label className="block text-sm font-medium mb-1">Username</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your username" 
-                  className="h-11" 
-                  value={registerData.username}
-                  onChange={(e) => setRegisterData({...registerData, username: e.target.value, role: 'seller'})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <Input 
-                  type="email" 
-                  placeholder="Enter your email" 
-                  className="h-11" 
-                  value={registerData.email}
-                  onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">First Name</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your first name" 
-                  className="h-11" 
-                  value={registerData.first_name}
-                  onChange={(e) => setRegisterData({...registerData, first_name: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Last Name</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your last name" 
-                  className="h-11" 
-                  value={registerData.last_name}
-                  onChange={(e) => setRegisterData({...registerData, last_name: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Phone Number</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your phone number" 
-                  className="h-11" 
-                  value={registerData.phone}
-                  onChange={(e) => setRegisterData({...registerData, phone: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Location</label>
-                <Input 
-                  type="text" 
-                  placeholder="Enter your location" 
-                  className="h-11" 
-                  value={registerData.location}
-                  onChange={(e) => setRegisterData({...registerData, location: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Password</label>
-                <Input 
-                  type="password" 
-                  placeholder="Enter your password" 
-                  className="h-11" 
-                  value={registerData.password}
-                  onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Confirm Password</label>
-                <Input 
-                  type="password" 
-                  placeholder="Confirm your password" 
-                  className="h-11" 
-                  value={registerData.confirm_password}
-                  onChange={(e) => setRegisterData({...registerData, confirm_password: e.target.value})}
-                  required
-                />
-              </div>
-              <Button 
-                className="w-full h-11 text-base font-semibold" 
-                size="lg" 
-                type="submit"
-                disabled={isRegistering}
-              >
-                {isRegistering ? "Registering..." : "Register"}
-              </Button>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

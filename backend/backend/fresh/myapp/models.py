@@ -2,6 +2,8 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+import random
+import string
 
 class User(AbstractUser):
     ROLE_CHOICES = (
@@ -156,3 +158,34 @@ class AdminVerification(models.Model):
     rejection_reason = models.TextField(blank=True)
     reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='verifications_done')
     reviewed_at = models.DateTimeField(default=timezone.now)
+
+class OTP(models.Model):
+    email = models.EmailField()
+    otp_code = models.CharField(max_length=6)
+    is_verified = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    
+    def __str__(self):
+        return f"OTP for {self.email}"
+    
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+    
+    @classmethod
+    def generate_otp(cls, email):
+        # Delete any existing OTPs for this email
+        cls.objects.filter(email=email).delete()
+        
+        # Generate 6-digit OTP
+        otp_code = ''.join(random.choices(string.digits, k=6))
+        
+        # Create OTP with 10 minutes expiry
+        from datetime import timedelta
+        expires_at = timezone.now() + timedelta(minutes=10)
+        
+        return cls.objects.create(
+            email=email,
+            otp_code=otp_code,
+            expires_at=expires_at
+        )

@@ -13,6 +13,12 @@ import SellerLogin from "./pages/SellerLogin";
 import BuyerRegistration from "./pages/BuyerRegistration";
 import SellerRegistration from "./pages/SellerRegistration";
 import Cart from "./pages/Cart";
+import Payment from "./pages/Payment";
+import Profile from "./pages/Profile";
+import MyOrders from "./pages/MyOrders";
+import Settings from "./pages/Settings";
+import PaymentMethods from "./pages/PaymentMethods";
+import DeliveryAddresses from "./pages/DeliveryAddresses";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +40,12 @@ const App = () => (
               <Route path="/buyer-registration" element={<BuyerRegistration />} />
               <Route path="/seller-registration" element={<SellerRegistration />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/payment" element={<Payment />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/orders" element={<MyOrders />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/payments" element={<PaymentMethods />} />
+              <Route path="/addresses" element={<DeliveryAddresses />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -6,8 +6,11 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  loginWithOTP: (email: string, otpCode: string) => Promise<boolean>;
+  sendOTP: (email: string, purpose?: 'login' | 'registration') => Promise<boolean>;
+  verifyOTP: (email: string, otpCode: string, purpose?: 'login' | 'registration') => Promise<boolean>;
   register: (userData: any) => Promise<boolean>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -60,6 +63,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const loginWithOtp = async (username: string, phoneNumber: string, role: 'buyer' | 'seller' = 'buyer'): Promise<boolean> => {
+    try {
+      // For demo purposes, create a mock user
+      const mockUser: User = {
+        id: 1,
+        username: username,
+        email: `${username}@example.com`,
+        first_name: username,
+        last_name: "User",
+        role: role,
+        phone: phoneNumber,
+        location: "Mumbai",
+        is_verified: true,
+        date_joined: new Date().toISOString()
+      };
+      
+      // Set a mock token
+      apiService.setToken('mock-token-' + Date.now());
+      setUser(mockUser);
+      return true;
+    } catch (error) {
+      console.error('OTP login failed:', error);
+      return false;
+    }
+  };
+
   const logout = () => {
     apiService.clearToken();
     setUser(null);
@@ -77,13 +106,64 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const sendOTP = async (email: string, purpose: 'login' | 'registration' = 'login'): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      await apiService.sendOTP({ email, purpose });
+      console.log(`OTP sent to ${email} for ${purpose}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to send OTP:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const verifyOTP = async (email: string, otpCode: string, purpose: 'login' | 'registration' = 'login'): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      await apiService.verifyOTP({ email, otp_code: otpCode, purpose });
+      console.log(`OTP verified for ${email}`);
+      return true;
+    } catch (error) {
+      console.error('Failed to verify OTP:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loginWithOTP = async (email: string, otpCode: string): Promise<boolean> => {
+    try {
+      setIsLoading(true);
+      const response = await apiService.loginWithOTP({ email, otp_code: otpCode });
+      
+      if (response.user) {
+        setUser(response.user);
+        localStorage.setItem('token', response.token);
+        console.log('Login with OTP successful');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Login with OTP failed:', error);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
     isLoading,
     login,
-    logout,
+    loginWithOTP,
+    sendOTP,
+    verifyOTP,
     register,
+    logout,
   };
 
   return (

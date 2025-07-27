@@ -6,14 +6,73 @@ from rest_framework.authtoken.views import ObtainAuthToken
 from rest_framework.authtoken.models import Token
 from django.contrib.auth import authenticate
 from django.db.models import Q
-from .models import User, SupplierProfile, VendorProfile, Coupon, Product, Cart, CartItem, Order, OrderItem, Rating, AdminVerification
+from .models import User, SupplierProfile, VendorProfile, Coupon, Product, Cart, CartItem, Order, OrderItem, Rating, AdminVerification, OTP
 from .serializers import (
     UserSerializer, UserRegistrationSerializer, SupplierProfileSerializer, VendorProfileSerializer, 
     CouponSerializer, ProductSerializer, CartSerializer, CartItemSerializer, OrderSerializer, 
-    OrderItemSerializer, RatingSerializer, AdminVerificationSerializer
+    OrderItemSerializer, RatingSerializer, AdminVerificationSerializer, SendOTPSerializer, 
+    VerifyOTPSerializer, UserRegistrationWithOTPSerializer
 )
+from .services import EmailService
 
 # Create your views here.
+
+class OTPViewSet(viewsets.ViewSet):
+    permission_classes = [permissions.AllowAny]
+    
+    @action(detail=False, methods=['post'])
+    def send_otp(self, request):
+        serializer = SendOTPSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            purpose = serializer.validated_data['purpose']
+            
+            # Generate OTP
+            otp = OTP.generate_otp(email)
+            
+            # Send OTP via Email
+            email_service = EmailService()
+            if email_service.send_otp(email, otp.otp_code, purpose):
+                return Response({
+                    'message': f'OTP sent to {email}',
+                    'purpose': purpose
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response({
+                    'error': 'Failed to send OTP'
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=False, methods=['post'])
+    def verify_otp(self, request):
+        serializer = VerifyOTPSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            otp_code = serializer.validated_data['otp_code']
+            purpose = serializer.validated_data['purpose']
+            
+            try:
+                otp = OTP.objects.get(email=email, otp_code=otp_code, is_verified=False)
+                if otp.is_expired():
+                    return Response({
+                        'error': 'OTP has expired'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+                
+                otp.is_verified = True
+                otp.save()
+                
+                return Response({
+                    'message': 'OTP verified successfully',
+                    'purpose': purpose
+                }, status=status.HTTP_200_OK)
+                
+            except OTP.DoesNotExist:
+                return Response({
+                    'error': 'Invalid OTP'
+                }, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -22,13 +81,15 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
     def register(self, request):
-        serializer = UserRegistrationSerializer(data=request.data)
+        serializer = UserRegistrationWithOTPSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
             token, created = Token.objects.get_or_create(user=user)
             return Response({
                 'token': token.key,
-                'user': UserSerializer(user).data
+                'user': UserSerializer(user).data,
+                'user_role': user.role,
+                'redirect_to': 'seller_dashboard' if user.role == 'seller' else 'shop'
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -44,6 +105,48 @@ class UserViewSet(viewsets.ModelViewSet):
                 'user': UserSerializer(user).data
             })
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny])
+    def login_with_otp(self, request):
+        email = request.data.get('email')
+        otp_code = request.data.get('otp_code')
+        
+        if not email or not otp_code:
+            return Response({
+                'error': 'Email and OTP are required'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Verify OTP
+            otp = OTP.objects.get(email=email, otp_code=otp_code, is_verified=False)
+            if otp.is_expired():
+                return Response({
+                    'error': 'OTP has expired'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Find user by email
+            try:
+                user = User.objects.get(email=email)
+                otp.is_verified = True
+                otp.save()
+                
+                token, created = Token.objects.get_or_create(user=user)
+                return Response({
+                    'token': token.key,
+                    'user': UserSerializer(user).data,
+                    'user_role': user.role,
+                    'redirect_to': 'seller_dashboard' if user.role == 'seller' else 'shop'
+                })
+                
+            except User.DoesNotExist:
+                return Response({
+                    'error': 'User not found with this email'
+                }, status=status.HTTP_404_NOT_FOUND)
+                
+        except OTP.DoesNotExist:
+            return Response({
+                'error': 'Invalid OTP'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 class SupplierProfileViewSet(viewsets.ModelViewSet):
     queryset = SupplierProfile.objects.all()

@@ -94,6 +94,23 @@ export interface RegisterData {
   aadhar_number?: string;
   aadhar_card_image?: File;
   trade_license_number?: string;
+  otp_code?: string; // NEW: OTP code for registration
+}
+
+export interface SendOTPData {
+  email: string;
+  purpose: 'registration' | 'login';
+}
+
+export interface VerifyOTPData {
+  email: string;
+  otp_code: string;
+  purpose: 'registration' | 'login';
+}
+
+export interface LoginWithOTPData {
+  email: string;
+  otp_code: string;
 }
 
 // API Service Class
@@ -156,14 +173,35 @@ class ApiService {
   }
 
   // Authentication
-  async login(credentials: LoginCredentials): Promise<{ token: string; user: User }> {
-    return this.request<{ token: string; user: User }>('/users/login/', {
+  async login(credentials: LoginCredentials): Promise<{ token: string; user: User; user_role: string; redirect_to: string }> {
+    return this.request<{ token: string; user: User; user_role: string; redirect_to: string }>('/users/login/', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
   }
 
-  async register(data: RegisterData): Promise<{ token: string; user: User }> {
+  async loginWithOTP(data: LoginWithOTPData): Promise<{ token: string; user: User; user_role: string; redirect_to: string }> {
+    return this.request<{ token: string; user: User; user_role: string; redirect_to: string }>('/users/login_with_otp/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async sendOTP(data: SendOTPData): Promise<{ message: string; purpose: string }> {
+    return this.request<{ message: string; purpose: string }>('/otp/send_otp/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async verifyOTP(data: VerifyOTPData): Promise<{ message: string; purpose: string }> {
+    return this.request<{ message: string; purpose: string }>('/otp/verify_otp/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async register(data: RegisterData): Promise<{ token: string; user: User; user_role: string; redirect_to: string }> {
     // Handle file upload using FormData
     const formData = new FormData();
     
@@ -179,7 +217,7 @@ class ApiService {
       }
     });
 
-    return this.request<{ token: string; user: User }>('/users/register/', {
+    return this.request<{ token: string; user: User; user_role: string; redirect_to: string }>('/users/register/', {
       method: 'POST',
       body: formData,
       headers: {

@@ -1,255 +1,173 @@
 from django.core.management.base import BaseCommand
-from django.contrib.auth.hashers import make_password
-from myapp.models import User, Product, SupplierProfile
+from django.contrib.auth import get_user_model
+from myapp.models import Product, User
 from decimal import Decimal
 
+User = get_user_model()
+
 class Command(BaseCommand):
-    help = 'Populate database with sample data'
+    help = 'Populate database with sample data for testing'
 
     def handle(self, *args, **options):
         self.stdout.write('Creating sample data...')
 
-        # Create sample sellers
-        sellers_data = [
-            {
-                'username': 'mumbai_spice',
-                'email': 'mumbai@spice.com',
-                'password': 'password123',
-                'first_name': 'Mumbai',
-                'last_name': 'Spice Co.',
-                'role': 'seller',
-                'phone': '9876543210',
-                'location': 'Mumbai',
-                'business_name': 'Mumbai Spice Co.'
-            },
-            {
-                'username': 'golden_oil',
-                'email': 'golden@oil.com',
-                'password': 'password123',
-                'first_name': 'Golden',
-                'last_name': 'Oil Mills',
-                'role': 'seller',
-                'phone': '9876543211',
-                'location': 'Delhi',
-                'business_name': 'Golden Oil Mills'
-            },
-            {
-                'username': 'flour_king',
-                'email': 'flour@king.com',
-                'password': 'password123',
-                'first_name': 'Flour',
-                'last_name': 'King Mills',
-                'role': 'seller',
-                'phone': '9876543212',
-                'location': 'Punjab',
-                'business_name': 'Flour King Mills'
-            },
-            {
-                'username': 'nashik_farmers',
-                'email': 'nashik@farmers.com',
-                'password': 'password123',
-                'first_name': 'Nashik',
-                'last_name': 'Farmers',
-                'role': 'seller',
-                'phone': '9876543213',
-                'location': 'Maharashtra',
-                'business_name': 'Nashik Farmers'
-            },
-            {
-                'username': 'spice_garden',
-                'email': 'spice@garden.com',
-                'password': 'password123',
-                'first_name': 'Spice',
-                'last_name': 'Garden',
-                'role': 'seller',
-                'phone': '9876543214',
-                'location': 'Karnataka',
-                'business_name': 'Spice Garden'
-            },
-            {
-                'username': 'rice_valley',
-                'email': 'rice@valley.com',
-                'password': 'password123',
-                'first_name': 'Rice',
-                'last_name': 'Valley',
-                'role': 'seller',
-                'phone': '9876543215',
-                'location': 'Haryana',
-                'business_name': 'Rice Valley'
-            },
-            {
-                'username': 'chili_express',
-                'email': 'chili@express.com',
-                'password': 'password123',
-                'first_name': 'Chili',
-                'last_name': 'Express',
-                'role': 'seller',
-                'phone': '9876543216',
-                'location': 'Andhra Pradesh',
-                'business_name': 'Chili Express'
-            },
-            {
-                'username': 'punjab_potato',
-                'email': 'punjab@potato.com',
-                'password': 'password123',
-                'first_name': 'Punjab',
-                'last_name': 'Potato Farm',
-                'role': 'seller',
-                'phone': '9876543217',
-                'location': 'Punjab',
-                'business_name': 'Punjab Potato Farm'
-            }
-        ]
-
-        sellers = []
-        for seller_data in sellers_data:
-            user, created = User.objects.get_or_create(
-                username=seller_data['username'],
+        # Create sample users
+        try:
+            # Create a seller user
+            seller, created = User.objects.get_or_create(
+                username='farmer_john',
                 defaults={
-                    'email': seller_data['email'],
-                    'password': make_password(seller_data['password']),
-                    'first_name': seller_data['first_name'],
-                    'last_name': seller_data['last_name'],
-                    'role': seller_data['role'],
-                    'phone': seller_data['phone'],
-                    'location': seller_data['location'],
+                    'email': 'john@example.com',
+                    'first_name': 'John',
+                    'last_name': 'Farmer',
+                    'phone': '9876543210',
+                    'role': 'seller',
+                    'location': 'Mumbai, Maharashtra',
                     'is_verified': True
                 }
             )
             if created:
-                SupplierProfile.objects.create(
-                    user=user,
-                    business_name=seller_data['business_name'],
-                    gst_number=f"GST{seller_data['phone'][-10:]}",
-                    documents_uploaded=True
-                )
-            sellers.append(user)
+                seller.set_password('password123')
+                seller.save()
+                self.stdout.write(f'Created seller: {seller.username}')
+
+            # Create a buyer user
+            buyer, created = User.objects.get_or_create(
+                username='vendor_ram',
+                defaults={
+                    'email': 'ram@example.com',
+                    'first_name': 'Ram',
+                    'last_name': 'Vendor',
+                    'phone': '9876543211',
+                    'role': 'buyer',
+                    'location': 'Delhi, NCR',
+                    'is_verified': True
+                }
+            )
+            if created:
+                buyer.set_password('password123')
+                buyer.save()
+                self.stdout.write(f'Created buyer: {buyer.username}')
+
+        except Exception as e:
+            self.stdout.write(f'Error creating users: {e}')
 
         # Create sample products
         products_data = [
             {
-                'name': 'Garam Masala Powder',
-                'description': 'Premium quality garam masala for authentic street food taste',
+                'name': 'Premium Red Chilli Powder',
+                'description': 'High-quality red chilli powder perfect for street food. Made from hand-picked red chillies.',
                 'category': 'spices',
-                'price': Decimal('320.00'),
+                'price': Decimal('120.00'),
                 'unit': 'per kg',
-                'available_quantity': 100.0,
+                'available_quantity': 50.0,
                 'freshness': 'Very Fresh',
+                'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
                 'rating': Decimal('4.8'),
-                'total_ratings': 45,
-                'supplier': sellers[0]
+                'total_ratings': 45
             },
             {
-                'name': 'Refined Sunflower Oil',
-                'description': 'High quality refined oil perfect for deep frying',
+                'name': 'Pure Mustard Oil',
+                'description': 'Cold-pressed mustard oil for authentic street food taste. Rich in flavor and aroma.',
                 'category': 'oils',
-                'price': Decimal('180.00'),
+                'price': Decimal('85.00'),
                 'unit': 'per liter',
+                'available_quantity': 100.0,
+                'freshness': 'Fresh',
+                'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
+                'rating': Decimal('4.6'),
+                'total_ratings': 32
+            },
+            {
+                'name': 'Whole Wheat Flour',
+                'description': 'Freshly ground whole wheat flour for making rotis and breads. High in fiber.',
+                'category': 'flours',
+                'price': Decimal('45.00'),
+                'unit': 'per kg',
                 'available_quantity': 200.0,
                 'freshness': 'Fresh',
-                'rating': Decimal('4.6'),
-                'total_ratings': 32,
-                'supplier': sellers[1]
-            },
-            {
-                'name': 'All Purpose Flour (Maida)',
-                'description': 'Fine quality maida for making bhature, samosa, and breads',
-                'category': 'flours',
-                'price': Decimal('35.00'),
-                'unit': 'per kg',
-                'available_quantity': 500.0,
-                'freshness': 'Fresh',
-                'rating': Decimal('4.9'),
-                'total_ratings': 67,
-                'supplier': sellers[2]
+                'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
+                'rating': Decimal('4.7'),
+                'total_ratings': 28
             },
             {
                 'name': 'Fresh Onions',
-                'description': 'Fresh red onions essential for street food preparation',
+                'description': 'Premium quality onions perfect for street food. Sweet and flavorful.',
                 'category': 'vegetables',
-                'price': Decimal('25.00'),
-                'unit': 'per kg',
-                'available_quantity': 300.0,
-                'freshness': 'Very Fresh',
-                'rating': Decimal('4.7'),
-                'total_ratings': 28,
-                'supplier': sellers[3]
-            },
-            {
-                'name': 'Turmeric Powder',
-                'description': 'Pure turmeric powder for color and flavor',
-                'category': 'spices',
-                'price': Decimal('280.00'),
+                'price': Decimal('35.00'),
                 'unit': 'per kg',
                 'available_quantity': 150.0,
                 'freshness': 'Very Fresh',
-                'rating': Decimal('4.5'),
-                'total_ratings': 23,
-                'supplier': sellers[4]
+                'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
+                'rating': Decimal('4.9'),
+                'total_ratings': 67
             },
             {
                 'name': 'Basmati Rice',
-                'description': 'Quality basmati rice for biryani and pulao stalls',
+                'description': 'Premium long-grain basmati rice. Perfect for biryanis and pulao.',
                 'category': 'grains',
-                'price': Decimal('85.00'),
+                'price': Decimal('95.00'),
                 'unit': 'per kg',
-                'available_quantity': 400.0,
+                'available_quantity': 80.0,
                 'freshness': 'Good',
-                'rating': Decimal('4.4'),
-                'total_ratings': 19,
-                'supplier': sellers[5]
+                'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
+                'rating': Decimal('4.5'),
+                'total_ratings': 23
             },
             {
-                'name': 'Red Chili Powder',
-                'description': 'Authentic red chili powder with perfect heat level',
+                'name': 'Garam Masala',
+                'description': 'Traditional garam masala blend. Essential for authentic Indian street food.',
                 'category': 'spices',
-                'price': Decimal('250.00'),
+                'price': Decimal('180.00'),
+                'unit': 'per kg',
+                'available_quantity': 25.0,
+                'freshness': 'Very Fresh',
+                'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
+                'rating': Decimal('4.8'),
+                'total_ratings': 41
+            },
+            {
+                'name': 'Sesame Oil',
+                'description': 'Pure sesame oil for authentic taste. Rich in antioxidants.',
+                'category': 'oils',
+                'price': Decimal('120.00'),
+                'unit': 'per liter',
+                'available_quantity': 60.0,
+                'freshness': 'Fresh',
+                'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
+                'rating': Decimal('4.4'),
+                'total_ratings': 19
+            },
+            {
+                'name': 'Fresh Tomatoes',
+                'description': 'Ripe and juicy tomatoes perfect for chutneys and gravies.',
+                'category': 'vegetables',
+                'price': Decimal('40.00'),
                 'unit': 'per kg',
                 'available_quantity': 120.0,
                 'freshness': 'Very Fresh',
-                'rating': Decimal('4.7'),
-                'total_ratings': 41,
-                'supplier': sellers[6]
-            },
-            {
-                'name': 'Fresh Potatoes',
-                'description': 'Fresh potatoes for aloo tikki, samosa filling, and more',
-                'category': 'vegetables',
-                'price': Decimal('20.00'),
-                'unit': 'per kg',
-                'available_quantity': 600.0,
-                'freshness': 'Fresh',
-                'rating': Decimal('4.3'),
-                'total_ratings': 15,
-                'supplier': sellers[7]
+                'image': 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400',
+                'rating': Decimal('4.6'),
+                'total_ratings': 34
             }
         ]
 
         for product_data in products_data:
-            Product.objects.get_or_create(
-                name=product_data['name'],
-                supplier=product_data['supplier'],
-                defaults=product_data
-            )
-
-        # Create sample buyer
-        buyer, created = User.objects.get_or_create(
-            username='test_buyer',
-            defaults={
-                'email': 'buyer@test.com',
-                'password': make_password('password123'),
-                'first_name': 'Test',
-                'last_name': 'Buyer',
-                'role': 'buyer',
-                'phone': '9876543200',
-                'location': 'Mumbai',
-                'is_verified': True
-            }
-        )
+            try:
+                product, created = Product.objects.get_or_create(
+                    name=product_data['name'],
+                    supplier=seller,
+                    defaults=product_data
+                )
+                if created:
+                    self.stdout.write(f'Created product: {product.name}')
+            except Exception as e:
+                self.stdout.write(f'Error creating product {product_data["name"]}: {e}')
 
         self.stdout.write(
-            self.style.SUCCESS('Successfully created sample data!')
+            self.style.SUCCESS('Successfully populated sample data!')
         )
-        self.stdout.write(f'Created {len(sellers)} sellers')
-        self.stdout.write(f'Created {len(products_data)} products')
-        self.stdout.write('Created 1 test buyer (username: test_buyer, password: password123)') 
+        self.stdout.write('Sample users created:')
+        self.stdout.write('- Seller: farmer_john (password: password123)')
+        self.stdout.write('- Buyer: vendor_ram (password: password123)')
+        self.stdout.write('Sample products created: 8 products') 

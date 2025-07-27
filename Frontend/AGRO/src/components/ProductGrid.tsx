@@ -4,13 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
 import { 
   ShoppingCart, 
   Star, 
   MapPin, 
   Filter,
   Search,
-  Loader2
+  Loader2,
+  Package,
+  RefreshCw
 } from "lucide-react";
 import { apiService, Product } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
@@ -112,12 +115,15 @@ const ProductGrid = () => {
   if (error) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="text-center py-12">
-          <div className="text-destructive mb-4">{error}</div>
-          <Button onClick={fetchProducts} variant="outline">
-            Try Again
-          </Button>
-        </div>
+        <EmptyState
+          icon={<RefreshCw className="h-8 w-8 text-destructive" />}
+          title="Failed to load products"
+          description={error}
+          action={{
+            label: "Try Again",
+            onClick: fetchProducts
+          }}
+        />
       </div>
     );
   }
@@ -182,89 +188,105 @@ const ProductGrid = () => {
       </div>
 
       {/* Product Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {products.map((product) => (
-          <Card key={product.id} className="hover:shadow-card transition-shadow group">
-            <CardContent className="p-0">
-              {/* Product Image */}
-              <div className="relative overflow-hidden rounded-t-lg">
-                <img
-                  src={product.image || "/placeholder.svg"}
-                  alt={product.name}
-                  className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                <Badge 
-                  className={`absolute top-2 left-2 ${getFreshnessColor(product.freshness)}`}
-                >
-                  {product.freshness}
-                </Badge>
-                {!product.in_stock && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <Badge variant="destructive">Out of Stock</Badge>
-                  </div>
-                )}
-              </div>
-
-              {/* Product Info */}
-              <div className="p-4">
-                <div className="space-y-2">
-                  <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                    {product.name}
-                  </h3>
-                  <p className="text-sm text-muted-foreground line-clamp-2">
-                    {product.description}
-                  </p>
-                  
-                  {/* Rating and Location */}
-                  <div className="flex items-center justify-between text-sm">
-                    <div className="flex items-center space-x-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-medium">{product.rating}</span>
+      {products.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {products.map((product) => (
+            <Card key={product.id} className="hover:shadow-card transition-shadow group">
+              <CardContent className="p-0">
+                {/* Product Image */}
+                <div className="relative overflow-hidden rounded-t-lg">
+                  <img
+                    src={product.image || "/placeholder.svg"}
+                    alt={product.name}
+                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <Badge 
+                    className={`absolute top-2 left-2 ${getFreshnessColor(product.freshness)}`}
+                  >
+                    {product.freshness}
+                  </Badge>
+                  {!product.in_stock && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Badge variant="destructive">Out of Stock</Badge>
                     </div>
-                    <div className="flex items-center space-x-1 text-muted-foreground">
-                      <MapPin className="h-3 w-3" />
-                      <span>{product.supplier_name}</span>
+                  )}
+                </div>
+
+                {/* Product Info */}
+                <div className="p-4">
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                      {product.name}
+                    </h3>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {product.description}
+                    </p>
+                    
+                    {/* Rating and Location */}
+                    <div className="flex items-center justify-between text-sm">
+                      <div className="flex items-center space-x-1">
+                        <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                        <span className="font-medium">{product.rating}</span>
+                      </div>
+                      <div className="flex items-center space-x-1 text-muted-foreground">
+                        <MapPin className="h-3 w-3" />
+                        <span>{product.supplier_name}</span>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Seller */}
-                  <div className="text-sm text-muted-foreground">
-                    by <span className="font-medium">{product.supplier_business}</span>
-                  </div>
+                    {/* Seller */}
+                    <div className="text-sm text-muted-foreground">
+                      by <span className="font-medium">{product.supplier_business}</span>
+                    </div>
 
-                  {/* Price */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-lg font-bold text-primary">₹{product.price}</span>
-                      <span className="text-sm text-muted-foreground ml-1">{product.unit}</span>
+                    {/* Price */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-lg font-bold text-primary">₹{product.price}</span>
+                        <span className="text-sm text-muted-foreground ml-1">{product.unit}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
+              </CardContent>
 
-            <CardFooter className="pt-0 px-4 pb-4">
-              <Button 
-                className="w-full" 
-                variant={product.in_stock ? "default" : "outline"}
-                disabled={!product.in_stock}
-                onClick={() => handleAddToCart(product)}
-              >
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                {product.in_stock ? "Add to Cart" : "Out of Stock"}
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
-
-      {/* No results */}
-      {products.length === 0 && !loading && (
-        <div className="text-center py-12">
-          <div className="text-muted-foreground mb-4">No products found matching your criteria</div>
-          <Button variant="outline" onClick={() => { setSearchTerm(""); setFilterCategory("all"); }}>
-            Clear Filters
-          </Button>
+              <CardFooter className="pt-0 px-4 pb-4">
+                <Button 
+                  className="w-full" 
+                  variant={product.in_stock ? "default" : "outline"}
+                  disabled={!product.in_stock}
+                  onClick={() => handleAddToCart(product)}
+                >
+                  <ShoppingCart className="h-4 w-4 mr-2" />
+                  {product.in_stock ? "Add to Cart" : "Out of Stock"}
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        /* No results with better UX */
+        <div className="py-12">
+          <EmptyState
+            icon={<Package className="h-8 w-8 text-muted-foreground" />}
+            title="No products found"
+            description={
+              searchTerm || filterCategory !== "all"
+                ? "No products match your current search criteria. Try adjusting your filters or search terms."
+                : "No products are currently available. Please check back later."
+            }
+            action={{
+              label: "Clear Filters",
+              onClick: () => { 
+                setSearchTerm(""); 
+                setFilterCategory("all"); 
+              }
+            }}
+            secondaryAction={{
+              label: "Refresh",
+              onClick: fetchProducts
+            }}
+          />
         </div>
       )}
     </div>

@@ -14,6 +14,7 @@ router.register(r'orders', views.OrderViewSet, basename='order')
 router.register(r'order-items', views.OrderItemViewSet)
 router.register(r'ratings', views.RatingViewSet)
 router.register(r'admin-verifications', views.AdminVerificationViewSet)
+router.register(r'otp', views.OTPViewSet, basename='otp')
 
 urlpatterns = [
     path('api/', include(router.urls)),

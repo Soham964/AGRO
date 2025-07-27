@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, SupplierProfile, VendorProfile, Coupon, Product, Cart, CartItem, Order, OrderItem, Rating, AdminVerification
+from .models import User, SupplierProfile, VendorProfile, Coupon, Product, Cart, CartItem, Order, OrderItem, Rating, AdminVerification, OTP
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -141,3 +141,62 @@ class AdminVerificationSerializer(serializers.ModelSerializer):
             'reviewed_by', 'reviewed_by_name', 'reviewed_at'
         ]
         read_only_fields = ['id', 'reviewed_at']
+
+class SendOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    purpose = serializers.ChoiceField(choices=[('registration', 'Registration'), ('login', 'Login')])
+
+class VerifyOTPSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp_code = serializers.CharField(max_length=6)
+    purpose = serializers.ChoiceField(choices=[('registration', 'Registration'), ('login', 'Login')])
+
+class UserRegistrationWithOTPSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True)
+    confirm_password = serializers.CharField(write_only=True)
+    otp_code = serializers.CharField(max_length=6, write_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'username', 'email', 'password', 'confirm_password', 'first_name', 'last_name', 
+            'role', 'phone', 'location', 'address', 'aadhar_number', 'aadhar_card_image', 
+            'trade_license_number', 'otp_code'
+        ]
+
+    def validate(self, attrs):
+        if attrs['password'] != attrs['confirm_password']:
+            raise serializers.ValidationError("Passwords don't match")
+        
+        # Verify OTP
+        email = attrs.get('email')
+        otp_code = attrs.get('otp_code')
+        
+        try:
+            otp = OTP.objects.get(email=email, otp_code=otp_code, is_verified=False)
+            if otp.is_expired():
+                raise serializers.ValidationError("OTP has expired")
+        except OTP.DoesNotExist:
+            raise serializers.ValidationError("Invalid OTP")
+        
+        return attrs
+
+    def create(self, validated_data):
+        otp_code = validated_data.pop('otp_code')
+        validated_data.pop('confirm_password')
+        
+        # Mark OTP as verified
+        email = validated_data.get('email')
+        otp = OTP.objects.get(email=email, otp_code=otp_code, is_verified=False)
+        otp.is_verified = True
+        otp.save()
+        
+        # Create user
+        user = User.objects.create_user(**validated_data)
+        
+        # Send welcome email
+        from .services import EmailService
+        email_service = EmailService()
+        email_service.send_welcome_email(user.email, user.username)
+        
+        return user

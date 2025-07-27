@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, Upload } from "lucide-react";
+import { X, Upload, Smartphone } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 const SellerRegistration = () => {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, sendOTP, verifyOTP } = useAuth();
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
@@ -19,9 +19,13 @@ const SellerRegistration = () => {
     aadharNumber: "",
     aadharCardImage: null as File | null,
     tradeLicenseNumber: "",
-    phoneNumber: "",
+    email: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpValue, setOtpValue] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -62,10 +66,87 @@ const SellerRegistration = () => {
     }
   };
 
+  const handleSendOTP = async () => {
+    if (!formData.email) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingOtp(true);
+    try {
+      const success = await sendOTP(formData.email, 'registration');
+      
+      if (success) {
+        setOtpSent(true);
+        toast({
+          title: "OTP Sent",
+          description: "OTP has been sent to your email address.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to send OTP. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send OTP. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otpValue) {
+      toast({
+        title: "OTP required",
+        description: "Please enter the OTP code",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsVerifyingOtp(true);
+    try {
+      const success = await verifyOTP(formData.email, otpValue, 'registration');
+      
+      if (success) {
+        toast({
+          title: "OTP Verified",
+          description: "Email verified successfully!",
+        });
+        setOtpSent(false);
+        setOtpValue("");
+      } else {
+        toast({
+          title: "Invalid OTP",
+          description: "Please check the OTP and try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to verify OTP. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsVerifyingOtp(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.address || !formData.aadharNumber || !formData.phoneNumber || !formData.tradeLicenseNumber) {
+    if (!formData.name || !formData.address || !formData.aadharNumber || !formData.email || !formData.tradeLicenseNumber) {
       toast({
         title: "Missing information",
         description: "Please fill in all required fields",
@@ -83,6 +164,15 @@ const SellerRegistration = () => {
       return;
     }
 
+    if (!otpSent) {
+      toast({
+        title: "Email verification required",
+        description: "Please verify your email address with OTP first",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
     
     try {
@@ -90,13 +180,13 @@ const SellerRegistration = () => {
         username: formData.name.toLowerCase().replace(/\s+/g, '_'),
         password: formData.aadharNumber.slice(-6), // Use last 6 digits as password
         first_name: formData.name,
-        email: `${formData.name.toLowerCase().replace(/\s+/g, '_')}@example.com`,
+        email: formData.email,
         role: 'seller',
         address: formData.address,
         aadhar_number: formData.aadharNumber,
-        phone_number: formData.phoneNumber,
         trade_license_number: formData.tradeLicenseNumber,
         aadhar_card_image: formData.aadharCardImage,
+        otp_code: otpValue, // Include OTP for verification
       };
 
       const success = await register(userData);
@@ -104,13 +194,14 @@ const SellerRegistration = () => {
       if (success) {
         toast({
           title: "Registration successful!",
-          description: "Welcome to VendorConnect as a seller",
+          description: "Welcome to VendorConnect!",
         });
+        // Redirect to seller dashboard or shop
         navigate("/shop");
       } else {
         toast({
           title: "Registration failed",
-          description: "Please try again",
+          description: "Please try again.",
           variant: "destructive",
         });
       }
@@ -197,6 +288,67 @@ const SellerRegistration = () => {
                 />
               </div>
 
+              {/* Email Address with OTP Verification */}
+              <div className="space-y-2">
+                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                  Email Address
+                </Label>
+                <div className="flex space-x-2">
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="Enter your email address"
+                    value={formData.email}
+                    onChange={handleInputChange}
+                    className="border-gray-300 focus:border-green-500 focus:ring-green-500 flex-1"
+                    required
+                    disabled={otpSent}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendOTP}
+                    disabled={isSendingOtp || !formData.email}
+                    className="border-gray-300 hover:border-green-500"
+                  >
+                    <Smartphone className="h-4 w-4 mr-1" />
+                    {isSendingOtp ? "Sending..." : "Send OTP"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* OTP Verification */}
+              {otpSent && (
+                <div className="space-y-2">
+                  <Label htmlFor="otp" className="text-sm font-medium text-gray-700">
+                    OTP Code
+                  </Label>
+                  <div className="flex space-x-2">
+                    <Input
+                      id="otp"
+                      type="text"
+                      placeholder="Enter 6-digit OTP"
+                      value={otpValue}
+                      onChange={(e) => setOtpValue(e.target.value)}
+                      className="border-gray-300 focus:border-green-500 focus:ring-green-500 flex-1"
+                      maxLength={6}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleVerifyOTP}
+                      disabled={isVerifyingOtp || !otpValue}
+                      className="border-gray-300 hover:border-green-500"
+                    >
+                      {isVerifyingOtp ? "Verifying..." : "Verify"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
               {/* Aadhar Card Image */}
               <div className="space-y-2">
                 <Label htmlFor="aadharCardImage" className="text-sm font-medium text-gray-700">
@@ -245,28 +397,11 @@ const SellerRegistration = () => {
                 />
               </div>
 
-              {/* Phone Number */}
-              <div className="space-y-2">
-                <Label htmlFor="phoneNumber" className="text-sm font-medium text-gray-700">
-                  Phone Number
-                </Label>
-                <Input
-                  id="phoneNumber"
-                  name="phoneNumber"
-                  type="tel"
-                  placeholder="Enter your phone number"
-                  value={formData.phoneNumber}
-                  onChange={handleInputChange}
-                  className="border-gray-300 focus:border-green-500 focus:ring-green-500"
-                  required
-                />
-              </div>
-
               {/* Register Button */}
               <Button
                 type="submit"
                 className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-lg"
-                disabled={isLoading}
+                disabled={isLoading || !otpSent}
               >
                 {isLoading ? "Registering..." : "Register"}
               </Button>

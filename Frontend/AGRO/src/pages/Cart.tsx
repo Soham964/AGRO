@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Minus, Plus, X, ShoppingBag, Truck, Loader2 } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -80,14 +81,15 @@ const Cart = () => {
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="text-center py-16">
-            <ShoppingBag className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-foreground mb-2">Your cart is empty</h2>
-            <p className="text-muted-foreground mb-6">Add some fresh produce to get started!</p>
-            <Button asChild>
-              <a href="/shop">Continue Shopping</a>
-            </Button>
-          </div>
+          <EmptyState
+            icon={<ShoppingBag className="h-8 w-8 text-muted-foreground" />}
+            title="Your cart is empty"
+            description="Add some fresh produce to get started with your order!"
+            action={{
+              label: "Continue Shopping",
+              onClick: () => window.location.href = "/shop"
+            }}
+          />
         </div>
       </div>
     );
