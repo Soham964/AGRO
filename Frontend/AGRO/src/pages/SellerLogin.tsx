@@ -4,14 +4,46 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Sprout, TrendingUp, Shield, Globe } from "lucide-react";
 
+import { useAuth } from "@/contexts/AuthContext";
+import { useState } from "react";
+
 const SellerLogin = () => {
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const [username, setUsername] = useState("Dhonulgbt");
+  const [password, setPassword] = useState("dhonutrans");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    // TEMPORARY BYPASS for test credentials
+    if (
+      (username === "Dhonulgbt" || username === "dhonulgbt@example.com") &&
+      password === "dhonutrans"
+    ) {
+      setLoading(false);
+      navigate("/seller/dashboard");
+      return;
+    }
+    // Normal backend login
+    const success = await login(username, password);
+    setLoading(false);
+    if (success) {
+      navigate("/seller/dashboard");
+    } else {
+      setError("Invalid credentials or user does not exist.");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Login Form */}
@@ -21,37 +53,48 @@ const SellerLogin = () => {
               <p className="text-muted-foreground">Sell your fresh produce directly to buyers</p>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Email</label>
-                  <Input type="email" placeholder="Enter your email" />
+                  <label className="text-sm font-medium text-foreground">Username</label>
+                  <Input
+                    type="text"
+                    placeholder="Enter your username"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
+                    autoComplete="username"
+                  />
                 </div>
-                
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Password</label>
-                  <Input type="password" placeholder="Enter your password" />
+                  <Input
+                    type="password"
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                  />
                 </div>
+                {error && <div className="text-red-500 text-sm">{error}</div>}
+                <Button className="w-full" size="lg" type="submit" disabled={loading}>
+                  {loading ? "Logging in..." : "Login to Dashboard"}
+                </Button>
+              </form>
+              {/* Option to go to product listing page after login */}
+              <div className="text-center mt-4">
+                <Button variant="outline" className="w-full" size="lg" onClick={() => navigate("/seller/list-products")}>Go to Product Listing Page</Button>
               </div>
-
-              <Button className="w-full" size="lg">
-                Login to Dashboard
-              </Button>
-
               <div className="text-center">
                 <Link to="/forgot-password" className="text-sm text-primary hover:underline">
                   Forgot your password?
                 </Link>
               </div>
-
               <Separator />
-
               <div className="text-center space-y-3">
                 <p className="text-sm text-muted-foreground">New to FreshConnect?</p>
                 <Button variant="outline" className="w-full" size="lg">
                   Register as Farmer
                 </Button>
               </div>
-
               <div className="text-center">
                 <p className="text-xs text-muted-foreground">
                   Looking to buy? <Link to="/buyer-login" className="text-primary hover:underline">Buyer login</Link>

@@ -14,6 +14,9 @@ import BuyerRegistration from "./pages/BuyerRegistration";
 import SellerRegistration from "./pages/SellerRegistration";
 import Cart from "./pages/Cart";
 import NotFound from "./pages/NotFound";
+import SellerDashboard from "./pages/Seller/Dashboard";
+import ListProduct from "./pages/Seller/ListProduct";
+import MyProducts from "./pages/Seller/MyProducts";
 
 const queryClient = new QueryClient();
 
@@ -35,6 +38,9 @@ const App = () => (
               <Route path="/seller-registration" element={<SellerRegistration />} />
               <Route path="/cart" element={<Cart />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="/seller/dashboard" element={<SellerDashboard />} />
+              <Route path="/seller/list-products" element={<ListProduct />} />
+              <Route path="/seller/my-products" element={<MyProducts />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
